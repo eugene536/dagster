@@ -3,11 +3,11 @@ from pathlib import Path
 import click
 
 from dagster_dg.cli.shared_options import dg_global_options
-from dagster_dg.component import RemoteComponentRegistry
-from dagster_dg.component_key import ComponentKey
+from dagster_dg.component import RemoteLibraryObjectRegistry
 from dagster_dg.config import normalize_cli_config
 from dagster_dg.context import DgContext
 from dagster_dg.docs import html_from_markdown, markdown_for_component_type, open_html_in_browser
+from dagster_dg.library_object_key import LibraryObjectKey
 from dagster_dg.utils import DgClickCommand, DgClickGroup, exit_with_error
 
 
@@ -33,8 +33,8 @@ def component_type_docs_command(
     """Get detailed information on a registered Dagster component type."""
     cli_config = normalize_cli_config(global_options, click.get_current_context())
     dg_context = DgContext.for_defined_registry_environment(Path.cwd(), cli_config)
-    registry = RemoteComponentRegistry.from_dg_context(dg_context)
-    component_key = ComponentKey.from_typename(component_type)
+    registry = RemoteLibraryObjectRegistry.from_dg_context(dg_context)
+    component_key = LibraryObjectKey.from_typename(component_type)
     if not registry.has(component_key):
         exit_with_error(f"Component type `{component_type}` not found.")
 

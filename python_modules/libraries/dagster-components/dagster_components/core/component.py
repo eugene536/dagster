@@ -23,7 +23,7 @@ from typing_extensions import Self
 
 from dagster_components.blueprint import BlueprintUnavailableReason, get_blueprint, scaffold_with
 from dagster_components.core.component_blueprint import DefaultComponentBlueprint
-from dagster_components.core.component_key import ComponentKey
+from dagster_components.core.library_object_key import LibraryObjectKey
 from dagster_components.resolved.context import ResolutionContext
 from dagster_components.resolved.model import ResolvableModel, ResolvedFrom, resolve_model
 from dagster_components.utils import format_error_message
@@ -138,11 +138,11 @@ def get_entry_points_from_python_environment(group: str) -> Sequence[importlib.m
         return importlib.metadata.entry_points().get(group, [])
 
 
-COMPONENTS_ENTRY_POINT_GROUP = "dagster.components"
+COMPONENTS_ENTRY_POINT_GROUP = "dg.library"
 
 
-def load_component_type(component_key: ComponentKey) -> type[Component]:
-    module_name, attr = component_key.namespace, component_key.name
+def load_component_type(object_key: LibraryObjectKey) -> type[Component]:
+    module_name, attr = object_key.namespace, object_key.name
     try:
         module = importlib.import_module(module_name)
         if not hasattr(module, attr):
@@ -159,16 +159,16 @@ def load_component_type(component_key: ComponentKey) -> type[Component]:
         raise DagsterError(f"Error loading module `{module_name}`.") from e
 
 
-def discover_entry_point_component_types() -> dict[ComponentKey, type[Component]]:
-    """Discover component types registered in the Python environment via the
-    `dagster_components` entry point group.
+def discover_entry_point_library_objects() -> dict[LibraryObjectKey, type[Component]]:
+    """Discover library objects registered in the Python environment via the
+    `dg_library` entry point group.
 
     `dagster-components` itself registers multiple component entry points. We call these
     "builtin" component libraries. The `dagster_components` entry point resolves to published
     component types and is loaded by default. Other entry points resolve to various sets of test
     component types. This method will only ever load one builtin component library.
     """
-    component_types: dict[ComponentKey, type[Component]] = {}
+    component_types: dict[LibraryObjectKey, type[Component]] = {}
     entry_points = get_entry_points_from_python_environment(COMPONENTS_ENTRY_POINT_GROUP)
 
     for entry_point in entry_points:
@@ -187,24 +187,24 @@ def discover_entry_point_component_types() -> dict[ComponentKey, type[Component]
                 f"Invalid entry point {entry_point.name} in group {COMPONENTS_ENTRY_POINT_GROUP}. "
                 f"Value expected to be a module, got {root_module}."
             )
-        for name, component_type in get_component_types_in_module(root_module):
-            key = ComponentKey(name=name, namespace=entry_point.value)
+        for name, component_type in get_library_objects_in_module(root_module):
+            key = LibraryObjectKey(name=name, namespace=entry_point.value)
             component_types[key] = component_type
     return component_types
 
 
-def discover_component_types(modules: Sequence[str]) -> dict[ComponentKey, type[Component]]:
-    component_types: dict[ComponentKey, type[Component]] = {}
+def discover_library_objects(modules: Sequence[str]) -> dict[LibraryObjectKey, type[Component]]:
+    component_types: dict[LibraryObjectKey, type[Component]] = {}
     for extra_module in modules:
-        for name, component_type in get_component_types_in_module(
+        for name, component_type in get_library_objects_in_module(
             importlib.import_module(extra_module)
         ):
-            key = ComponentKey(name=name, namespace=extra_module)
+            key = LibraryObjectKey(name=name, namespace=extra_module)
             component_types[key] = component_type
     return component_types
 
 
-def get_component_types_in_module(
+def get_library_objects_in_module(
     module: ModuleType,
 ) -> Iterable[tuple[str, type[Component]]]:
     for attr in dir(module):
